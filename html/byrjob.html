@@ -1,0 +1,82 @@
+<html>
+<head>
+<script type="text/javascript" src="http://www.google.com/jsapi"   ></script>
+<script type="text/javascript" src="jquery-1.7.1.min.js"   ></script>
+<script type="text/javascript">
+var data = null;
+      // Load the Visualization API and the piechart package.
+google.load('visualization', '1.0', {'packages':['corechart']});
+
+function process()
+{
+	var selected = ['微软','百度','all'];
+	if ($('#selected_input')[0].value != '')
+	{
+		selected = $('#selected_input')[0].value.split(','); 
+	}
+	var table = new google.visualization.DataTable();
+	table.addColumn('string', 'Date');
+	for (var i in selected)  
+		table.addColumn('number', selected[i]);
+	table.addRows(data.label.length);
+	for (var i=0; i<data.label.length; i++)
+	{	
+		table.setCell(i, 0, data.label[i]);
+		for (var j=0; j<selected.length; j++)
+		{
+			table.setCell(i, j+1, data.data[selected[j]][i])
+		}
+	}
+	var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+    	chart.draw(table, {width: '100%', height: 300,
+               chartArea: {left:38,top:30, width:"80%",height:"70%"},
+               legendTextStyle: {color:'#666666'},
+	       curveType : 'function',
+	       vAxis: {minValue: 0, baseline:0,
+	       		width: '60px'},
+               hAxis: {title: 'date',
+	               titleTextStyle: {color: '#5c5c5c'},
+        	       titlePosition: 'out'}
+              });	
+}
+function add_selected(s)
+{
+	console.debug(s);
+	if ($('#selected_input')[0].value != "") $('#selected_input')[0].value += ',';
+	$('#selected_input')[0].value += s.srcElement.innerHTML;
+
+}
+function initData() {
+	var url = "byrjob.json";
+	jQuery.getJSON(url, function(d){
+		data=d;
+		console.debug(data);
+		for (var word in data["data"]){
+			$('<span>').text(word).click(add_selected).appendTo('#options');
+			$('#options').append(', ');
+		}
+	});
+}
+$(document).ready(function(){
+	initData();
+	$('#butt').click(process);
+	$('#clean_butt').click(function(){$('#selected_input')[0].value='';});
+});
+</script>
+
+</head>
+<body>
+统计<a href="http://bbs.byr.cn/board/Job">北邮人Job版</a>词频的小工具<br/>
+点击选中一个词，‘go’绘图。<br/>
+纵轴是热度，每个词（含它的同义词）在一条帖子中出现记1，在主题的title中出现记3。<br/>
+祝大家offer多多～<br/>
+author: <a href="http://weibo.com/scatwang">scatwang</a>
+<form>
+<div id='options'></div>
+<input type="text" id="selected_input"/>
+<input type="button" id="butt" value="go">
+<input type="button" id="clean_butt" value="clean">
+<div id='chart_div' > </div>
+</form>
+</body>
+</html>

@@ -1,4 +1,4 @@
-#!/usr/local/python2.7/bin/python
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
 import re
@@ -29,20 +29,34 @@ def getArtical(board,id,pageno=1):
 	if pageno <> 1:
 		url += '?p=%d' % pageno
 	html = urllib2.urlopen(url).read()
-	print url
+	#print url
 	soup = BeautifulSoup.BeautifulSoup(html)
 	ss = soup.findAll('table', 'article')
 	for s in ss:
-		rr = {}
-		suname = s.find('span', attrs={'class':'u-name'}).find('a')
-		rr['uname'] = suname.renderContents()
-		scontext = s.find('td', attrs={'class':"a-content a-no-bottom a-no-top"})
-		datestr = re.search('发信站: 北邮人论坛 \((.*?)\),',str(scontext)).group(1)
-		date = datetime.datetime.strptime(datestr ,'%a %b %d %H:%M:%S %Y')
-		scontext = scontext[scontext.find('站内 <br />&nbsp;&nbsp;<br />'):]
-		rr['context'] = str(scontext)
-		rr['post_time'] = str(date)
-		r.append(rr)
+		try:
+			rr = {}
+			suname = s.find('span', attrs={'class':'u-name'}).find('a')
+			rr['uname'] = suname.renderContents()
+			scontext = s.find('td', attrs={'class':"a-content a-no-bottom a-no-top"})
+			datestr = re.search('发信站: 北邮人论坛 \((.*?)\),',str(scontext)).group(1)
+			datestr = datestr.replace('&nbsp;',' ')
+			date = datetime.datetime.strptime(datestr ,'%a %b %d %H:%M:%S %Y')
+			context = scontext.renderContents()
+			#print context
+			context = re.sub(r'.*站内 <br />&nbsp;&nbsp;<br />', "", context)
+			context = re.sub(r'<br /> -- <br />&nbsp;&nbsp;<br /> <font.*', '', context)
+			context = re.sub(r'【 在.*?的大作中提到: 】', '', context)
+			context = re.sub(r'<font.*?>.*</font>', '', context)
+			context = re.sub(r'<br />', '', context)
+			context = re.sub(r'&nbsp;', ' ', context)
+			context = re.sub(r'<img .*? />', ' ', context)
+			context = re.sub(r'</p>', '', context)
+			#print context
+			rr['context'] = context
+			rr['post_time'] = str(date)
+			r.append(rr)
+		except:
+			pass
 	if pageno == 1:
 		ms = re.findall(r'\?p=(\d*)', html)
 		max_p = 0
@@ -52,18 +66,27 @@ def getArtical(board,id,pageno=1):
 		for pno in range(2,max_p+1):
 			r.extend(getArtical(board, id, pno))
 	return r
-def main():
-	ps = getIndexPage('Job',1)
+def downloadBoard(board,pageno):
+	ps = getIndexPage(board,pageno)
 	print ps
 	for a in ps:
-		article = {'id':a['id'], 'title':a['topic']}
-		article['posts'] =  getArtical('Job', a['id'])
-		article['post_time'] = article['posts'][0]['post_time']
-		print "ID:%s\tPost:%s\tChar:%s\tTitle:%s" % (a['id'], len(article), 0, a['topic'])
-		conn.execute("delete from article where id='%s'" % a['id'])
-		conn.execute("insert into article(id,len,posts) value('%s','%s','%s')" % (a['id'], len(article),json.dumps(article)))
-		conn.commit()
-
+		for i in range(3):
+			try:
+				article = {'id':a['id'], 'title':a['topic']}
+				article['posts'] =  getArtical(board, a['id'])
+				article['post_time'] = article['posts'][0]['post_time']
+				print "ID:%s\tPost:%s\tChar:%s\tTitle:%s" % (a['id'], len(article), 0, a['topic'])
+				conn.execute("delete from article where id='%s'" % a['id'])
+				sqlstr = "insert into article(id,post_time,len,posts) values('%s','%s','%s','%s')" % (a['id'],article['post_time'], len(article),json.dumps(article))
+				#print sqlstr
+				conn.execute(sqlstr)
+				conn.commit()
+				break
+			except Exception,ex:
+				print ex
+def main():
+	for i in range(1,25):
+		downloadBoard('Job', i)
 if __name__ == '__main__':
 	main()
 	 
